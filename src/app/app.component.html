@@ -1,45 +1,107 @@
 <div class="shell">
-    <header>
-        <div>
-            <div class="eyebrow">V1 · MARKET INTELLIGENCE</div>
-            <h1>Market Intelligence</h1>
-            <p>Transparent market conditions, technical levels and scenario triggers.</p>
-        </div><button (click)="refresh()">↻ Refresh</button>
-    </header>
-    <section class="grid" *ngIf="!loading; else load">
-        <article class="card" *ngFor="let s of symbols">
-            <div class="row"><strong>{{s}}</strong><span
-                    [class.up]="(quote(s)?.changePercent||0)>=0">{{(quote(s)?.changePercent||0)>=0?'▲':'▼'}}
-                    {{fmt(quote(s)?.changePercent||0)}}%</span></div>
-            <div class="price">{{fmt(quote(s)?.price||0)}}</div>
-            <div class="muted">H {{fmt(quote(s)?.high||0)}} · L {{fmt(quote(s)?.low||0)}}</div>
-            <div class="signal" *ngIf="signals[s]"><span>{{signals[s].signal}}</span><b>{{signals[s].score}}/100</b>
-            </div>
-        </article>
+  <header>
+    <div>
+      <div class="eyebrow">V1.2 · MARKET INTELLIGENCE</div>
+      <h1>Market Intelligence</h1>
+      <p>Quotes, technicals, historical candles, levels, news and transparent alerts.</p>
+    </div>
+    <button (click)="refresh()">↻ Refresh</button>
+  </header>
+
+  <div class="error" *ngIf="error">{{ error }}</div>
+
+  <section class="grid" *ngIf="!loading; else load">
+    <article class="card symbol-card" *ngFor="let s of symbols" (click)="selectSymbol(s)" [class.selected]="selectedSymbol === s">
+      <div class="row"><strong>{{s}}</strong><span [class.up]="(quote(s)?.changePercent||0)>=0">{{(quote(s)?.changePercent||0)>=0?'▲':'▼'}} {{fmt(quote(s)?.changePercent)}}%</span></div>
+      <div class="price">{{fmt(quote(s)?.price)}}</div>
+      <div class="muted">H {{fmt(quote(s)?.high)}} · L {{fmt(quote(s)?.low)}}</div>
+      <div class="signal" *ngIf="signal(s)"><span>{{signal(s).signal}}</span><b>{{signal(s).score}}/100</b></div>
+    </article>
+  </section>
+
+  <ng-template #load><div class="loading">Loading market data…</div></ng-template>
+
+  <section class="panel" *ngIf="technical(selectedSymbol) as t">
+    <div class="panel-head">
+      <div><h2>{{selectedSymbol}} technical dashboard</h2><span class="badge">{{t.trend}}</span></div>
+      <div class="score">{{t.conditionsMet}} / {{t.totalConditions}} conditions</div>
+    </div>
+    <div class="metrics">
+      <div><label>RSI 14</label><b>{{fmt(t.rsi14)}}</b></div>
+      <div><label>ATR 14</label><b>{{fmt(t.atr14)}}</b></div>
+      <div><label>Rel. volume</label><b>{{fmt(t.relativeVolume20)}}x</b></div>
+      <div><label>SMA 20</label><b>{{fmt(t.sma20)}}</b></div>
+      <div><label>SMA 50</label><b>{{fmt(t.sma50)}}</b></div>
+      <div><label>SMA 200</label><b>{{fmt(t.sma200)}}</b></div>
+      <div><label>EMA 21</label><b>{{fmt(t.ema21)}}</b></div>
+      <div><label>EMA 50</label><b>{{fmt(t.ema50)}}</b></div>
+    </div>
+    <div class="levels">
+      <div><span>Support 2</span><b>{{fmt(t.support2)}}</b></div>
+      <div><span>Support 1</span><b>{{fmt(t.support1)}}</b></div>
+      <div class="spot"><span>Price</span><b>{{fmt(t.price)}}</b></div>
+      <div><span>Resistance 1</span><b>{{fmt(t.resistance1)}}</b></div>
+      <div><span>Resistance 2</span><b>{{fmt(t.resistance2)}}</b></div>
+    </div>
+  </section>
+
+  <section class="panel chart-panel">
+    <div class="panel-head"><h2>{{selectedSymbol}} · 90-day candles</h2><span class="muted">Daily OHLC</span></div>
+    <svg viewBox="0 0 800 240" preserveAspectRatio="none" class="chart" *ngIf="chartBars(selectedSymbol).length; else noChart">
+      <line x1="10" y1="220" x2="790" y2="220" class="axis"/>
+      <g *ngFor="let bar of chartBars(selectedSymbol)">
+        <line [attr.x1]="bar.x" [attr.x2]="bar.x" [attr.y1]="bar.highY" [attr.y2]="bar.lowY" class="wick" [class.up-stroke]="bar.up"/>
+        <rect [attr.x]="bar.x - 2" [attr.y]="barBodyY(bar)" width="4" [attr.height]="barBodyHeight(bar)" class="candle" [class.up-fill]="bar.up"/>
+      </g>
+    </svg>
+    <ng-template #noChart><div class="empty">No historical candles returned.</div></ng-template>
+  </section>
+
+  <section class="panel" *ngIf="signal(selectedSymbol) as s">
+    <div class="panel-head"><div><h2>{{selectedSymbol}} scenario</h2><span class="badge">{{s.regime}}</span></div><b>{{s.score}}/100</b></div>
+    <div class="cols">
+      <div><label>Trigger</label><p>{{s.trigger}}</p></div>
+      <div><label>Invalidation</label><p>{{s.invalidation}}</p></div>
+      <div><label>Upside scenario</label><p>{{s.upsideScenario}}</p></div>
+      <div><label>Downside scenario</label><p>{{s.downsideScenario}}</p></div>
+    </div>
+  </section>
+
+  <section class="two-col">
+    <section class="panel">
+      <div class="panel-head"><h2>News · {{selectedSymbol}}</h2><span class="muted">Last 7 days</span></div>
+      <div *ngIf="newsLoading" class="empty">Loading news…</div>
+      <article class="news" *ngFor="let item of news">
+        <a [href]="item.url" target="_blank" rel="noopener">{{item.headline}}</a>
+        <div class="muted">{{item.source}} · {{item.publishedAt | date:'MMM d, HH:mm'}}</div>
+        <p>{{item.summary}}</p>
+      </article>
+      <div *ngIf="!newsLoading && !news.length" class="empty">No news returned. Check the Finnhub API key/provider configuration.</div>
     </section>
-    <ng-template #load>
-        <div class="loading">Loading market data…</div>
-    </ng-template>
-    <ng-container *ngFor="let s of symbols">
-        <section class="details" [ngClass]="{'featured':s==='NDX'}" *ngIf="signals[s]">
-            <div>
-                <h2>{{s}} scenario</h2><span class="badge">{{signals[s].regime}}</span>
-            </div>
-            <div class="cols">
-                <div><label>Trigger</label>
-                    <p>{{signals[s].trigger}}</p>
-                </div>
-                <div><label>Invalidation</label>
-                    <p>{{signals[s].invalidation}}</p>
-                </div>
-                <div><label>Upside scenario</label>
-                    <p>{{signals[s].upsideScenario}}</p>
-                </div>
-                <div><label>Downside scenario</label>
-                    <p>{{signals[s].downsideScenario}}</p>
-                </div>
-            </div>
-        </section>
-    </ng-container>
-    <footer>V1 uses transparent rule-based signals. It does not predict markets or execute trades.</footer>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Alerts</h2><button class="small" (click)="evaluateAlerts()">Evaluate now</button></div>
+      <div class="alert-form">
+        <select [(ngModel)]="alertType">
+          <option value="PRICE_ABOVE">Price above</option>
+          <option value="PRICE_BELOW">Price below</option>
+          <option value="RSI_ABOVE">RSI above</option>
+          <option value="RSI_BELOW">RSI below</option>
+          <option value="RELATIVE_VOLUME_ABOVE">Relative volume above</option>
+          <option value="BREAKS_RESISTANCE1">Breaks resistance 1</option>
+          <option value="BREAKS_SUPPORT1">Breaks support 1</option>
+        </select>
+        <input type="number" [(ngModel)]="alertThreshold" placeholder="Threshold">
+        <input type="number" [(ngModel)]="alertCooldown" placeholder="Cooldown seconds">
+        <button (click)="createAlert()">Add alert</button>
+      </div>
+      <div class="alert-row" *ngFor="let alert of alerts">
+        <span><b>{{alert.type}}</b> · {{fmt(alert.threshold)}} · {{alert.cooldownSeconds}}s</span>
+        <button class="danger" (click)="deleteAlert(alert.id)">Delete</button>
+      </div>
+      <div class="event" *ngFor="let event of events">{{event.message}}</div>
+    </section>
+  </section>
+
+  <footer>Signals and alerts are transparent rule-based analytics. They do not predict markets or execute trades.</footer>
 </div>
