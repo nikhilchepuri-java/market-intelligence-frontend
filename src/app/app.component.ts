@@ -10,6 +10,10 @@ interface NewsArticle { symbol: string; id: number; publishedAt: string; headlin
 interface Candle { symbol: string; timeframe: string; timestamp: string; open: number; high: number; low: number; close: number; volume: number; }
 interface AlertRule { id: number; symbol: string; type: string; threshold: number; enabled: boolean; cooldownSeconds: number; lastTriggeredAt: string | null; }
 interface AlertEvent { ruleId: number; symbol: string; type: string; value: number; threshold: number; triggeredAt: string; message: string; }
+interface OptionContract { symbol: string; underlying: string; optionType: 'CALL'|'PUT'; expiration: string; strike: number; bid: number; ask: number; last: number; volume: number; openInterest: number; impliedVolatility: number; delta: number; gamma: number; theta: number; vega: number; rho: number; contractSize: number; }
+interface OptionChain { underlying: string; expiration: string; contracts: OptionContract[]; }
+interface UnusualOptionActivity { symbol: string; underlying: string; optionType: string; expiration: string; strike: number; volume: number; openInterest: number; volumeOpenInterestRatio: number; impliedVolatility: number; premium: number; reason: string; }
+interface OptionScenario { underlying: string; optionType: string; strike: number; underlyingPrice: number; targetUnderlyingPrice: number; impliedVolatility: number; theoreticalPrice: number; currentIntrinsicValue: number; targetIntrinsicValue: number; estimatedProfitLoss: number; estimatedReturnPercent: number; delta: number; gamma: number; theta: number; vega: number; rho: number; }
 
 @Component({
     selector: 'app-root',
@@ -37,6 +41,17 @@ export class AppComponent implements OnInit {
     alertThreshold = 0;
     alertCooldown = 300;
     error = '';
+    optionExpirations: string[] = [];
+    selectedExpiration = '';
+    optionChain: OptionChain | null = null;
+    unusualActivity: UnusualOptionActivity[] = [];
+    optionType: 'CALL'|'PUT' = 'CALL';
+    optionStrike = 0;
+    optionIv = 0.30;
+    optionTargetPrice = 0;
+    optionRate = 0.04;
+    optionScenario: OptionScenario | null = null;
+    optionsLoading = false;
 
     ngOnInit() { this.refresh(); }
 
@@ -97,6 +112,56 @@ export class AppComponent implements OnInit {
             error: () => { this.news = []; this.newsLoading = false; }
         });
         this.loadAlerts();
+        this.loadOptions();
+    }
+
+    loadOptions() {
+        this.optionsLoading = true;
+        this.http.get<string[]>(`${this.api}/options/${this.selectedSymbol}/expirations`).subscribe({
+            next: dates => {
+                this.optionExpirations = dates;
+                if (!this.selectedExpiration || !dates.includes(this.selectedExpiration)) this.selectedExpiration = dates[0] || '';
+                if (this.selectedExpiration) this.loadOptionChain();
+                else this.optionsLoading = false;
+            },
+            error: () => { this.optionExpirations = []; this.optionChain = null; this.unusualActivity = []; this.optionsLoading = false; }
+        });
+    }
+
+    loadOptionChain() {
+        if (!this.selectedExpiration) return;
+        this.optionsLoading = true;
+        this.http.get<OptionChain>(`${this.api}/options/${this.selectedSymbol}/chain?expiration=${this.selectedExpiration}`).subscribe({
+            next: chain => {
+                this.optionChain = chain;
+                this.unusualActivity = [];
+                this.optionsLoading = false;
+                const first = chain.contracts.find(x => x.optionType === this.optionType);
+                this.optionStrike = first?.strike || 0;
+                this.optionIv = first?.impliedVolatility || 0.30;
+                this.optionTargetPrice = this.quote(this.selectedSymbol)?.price || 0;
+                this.http.get<UnusualOptionActivity[]>(`${this.api}/options/${this.selectedSymbol}/unusual?expiration=${this.selectedExpiration}`).subscribe({ next: x => this.unusualActivity = x.slice(0, 12) });
+            },
+            error: () => { this.optionChain = null; this.optionsLoading = false; }
+        });
+    }
+
+    runOptionScenario() {
+        this.http.post<OptionScenario>(`${this.api}/options/scenario`, {
+            underlying: this.selectedSymbol,
+            optionType: this.optionType,
+            strike: Number(this.optionStrike),
+            expiration: this.selectedExpiration,
+            underlyingPrice: this.quote(this.selectedSymbol)?.price || 0,
+            impliedVolatility: Number(this.optionIv),
+            targetUnderlyingPrice: Number(this.optionTargetPrice),
+            riskFreeRate: Number(this.optionRate),
+            contractSize: 100
+        }).subscribe({ next: x => this.optionScenario = x });
+    }
+
+    optionContracts(type: 'CALL'|'PUT') {
+        return (this.optionChain?.contracts || []).filter(x => x.optionType === type).slice(0, 15);
     }
 
     loadAlerts() {
