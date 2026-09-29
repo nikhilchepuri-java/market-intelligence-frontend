@@ -103,5 +103,73 @@
     </section>
   </section>
 
+  <section class="panel options-panel">
+    <div class="panel-head">
+      <div><h2>{{selectedSymbol}} options chain</h2><span class="badge">V2 OPTIONS</span></div>
+      <div class="option-controls">
+        <select [(ngModel)]="selectedExpiration" (change)="loadOptionChain()">
+          <option *ngFor="let date of optionExpirations" [value]="date">{{date}}</option>
+        </select>
+      </div>
+    </div>
+
+    <div *ngIf="optionsLoading" class="empty">Loading options…</div>
+    <div *ngIf="!optionsLoading && optionChain" class="options-grid">
+      <div>
+        <h3>Calls</h3>
+        <div class="option-table">
+          <div class="option-head"><span>Strike</span><span>Bid/Ask</span><span>IV</span><span>Δ</span><span>OI</span><span>Vol</span></div>
+          <div class="option-row" *ngFor="let o of optionContracts('CALL')">
+            <span>{{fmt(o.strike)}}</span><span>{{fmt(o.bid)}} / {{fmt(o.ask)}}</span><span>{{fmt(o.impliedVolatility * 100)}}%</span><span>{{fmt(o.delta)}}</span><span>{{o.openInterest}}</span><span>{{o.volume}}</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3>Puts</h3>
+        <div class="option-table">
+          <div class="option-head"><span>Strike</span><span>Bid/Ask</span><span>IV</span><span>Δ</span><span>OI</span><span>Vol</span></div>
+          <div class="option-row" *ngFor="let o of optionContracts('PUT')">
+            <span>{{fmt(o.strike)}}</span><span>{{fmt(o.bid)}} / {{fmt(o.ask)}}</span><span>{{fmt(o.impliedVolatility * 100)}}%</span><span>{{fmt(o.delta)}}</span><span>{{o.openInterest}}</span><span>{{o.volume}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col option-bottom">
+      <div>
+        <h3>Unusual activity</h3>
+        <div class="alert-row" *ngFor="let x of unusualActivity">
+          <span><b>{{x.optionType}} {{fmt(x.strike)}}</b> · Vol/OI {{fmt(x.volumeOpenInterestRatio)}}x · IV {{fmt(x.impliedVolatility * 100)}}%</span>
+          <span class="muted">{{x.reason}}</span>
+        </div>
+        <div *ngIf="!unusualActivity.length" class="empty">No unusual contracts detected for this expiration.</div>
+      </div>
+
+      <div>
+        <h3>Option scenario</h3>
+        <div class="scenario-form">
+          <select [(ngModel)]="optionType">
+            <option value="CALL">Call</option>
+            <option value="PUT">Put</option>
+          </select>
+          <input type="number" [(ngModel)]="optionStrike" placeholder="Strike">
+          <input type="number" step="0.01" [(ngModel)]="optionIv" placeholder="IV (0.30 = 30%)">
+          <input type="number" [(ngModel)]="optionTargetPrice" placeholder="Target underlying">
+          <button (click)="runOptionScenario()">Run scenario</button>
+        </div>
+        <div class="scenario-result" *ngIf="optionScenario as s">
+          <div><label>Theoretical price</label><b>{{fmt(s.theoreticalPrice)}}</b></div>
+          <div><label>Est. P/L / contract</label><b>{{fmt(s.estimatedProfitLoss)}}</b></div>
+          <div><label>Est. return</label><b>{{fmt(s.estimatedReturnPercent)}}%</b></div>
+          <div><label>Delta</label><b>{{fmt(s.delta)}}</b></div>
+          <div><label>Gamma</label><b>{{fmt(s.gamma)}}</b></div>
+          <div><label>Theta / day</label><b>{{fmt(s.theta)}}</b></div>
+          <div><label>Vega</label><b>{{fmt(s.vega)}}</b></div>
+          <div><label>Rho</label><b>{{fmt(s.rho)}}</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <footer>Signals and alerts are transparent rule-based analytics. They do not predict markets or execute trades.</footer>
 </div>
