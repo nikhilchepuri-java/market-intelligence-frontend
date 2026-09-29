@@ -1,0 +1,6 @@
+{
+  "name":"market-intelligence-ui","version":"0.1.0","private":true,
+  "scripts":{"start":"ng serve","build":"ng build"},
+  "dependencies":{"@angular/common":"^20.2.0","@angular/compiler":"^20.2.0","@angular/core":"^20.2.0","@angular/forms":"^20.2.0","@angular/platform-browser":"^20.2.0","rxjs":"^7.8.2","zone.js":"^0.15.1"},
+  "devDependencies":{"@angular/cli":"^20.2.0","@angular-devkit/build-angular":"^20.2.0","typescript":"~5.9.2"}
+}

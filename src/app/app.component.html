@@ -1,0 +1,11 @@
+<div class="shell">
+<header><div><div class="eyebrow">V1 · MARKET INTELLIGENCE</div><h1>Market Intelligence</h1><p>Transparent market conditions, technical levels and scenario triggers.</p></div><button (click)="refresh()">↻ Refresh</button></header>
+<section class="grid" *ngIf="!loading; else load">
+ <article class="card" *ngFor="let s of symbols"><div class="row"><strong>{{s}}</strong><span [class.up]="(quote(s)?.changePercent||0)>=0">{{(quote(s)?.changePercent||0)>=0?'▲':'▼'}} {{fmt(quote(s)?.changePercent||0)}}%</span></div><div class="price">{{fmt(quote(s)?.price||0)}}</div><div class="muted">H {{fmt(quote(s)?.high||0)}} · L {{fmt(quote(s)?.low||0)}}</div><div class="signal" *ngIf="signals[s]"><span>{{signals[s].signal}}</span><b>{{signals[s].score}}/100</b></div></article>
+</section>
+<ng-template #load><div class="loading">Loading market data…</div></ng-template>
+<ng-container *ngFor="let s of symbols"><section class="details" [ngClass]="{'featured':s==='NDX'}" *ngIf="signals[s]">
+ <div><h2>{{s}} scenario</h2><span class="badge">{{signals[s].regime}}</span></div><div class="cols"><div><label>Trigger</label><p>{{signals[s].trigger}}</p></div><div><label>Invalidation</label><p>{{signals[s].invalidation}}</p></div><div><label>Upside scenario</label><p>{{signals[s].upsideScenario}}</p></div><div><label>Downside scenario</label><p>{{signals[s].downsideScenario}}</p></div></div>
+</section></ng-container>
+<footer>V1 uses transparent rule-based signals. It does not predict markets or execute trades.</footer>
+</div>
