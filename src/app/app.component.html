@@ -5,7 +5,13 @@
       <h1>Market Intelligence</h1>
       <p>Quotes, technicals, historical candles, levels, news and transparent alerts.</p>
     </div>
-    <button (click)="refresh()">↻ Refresh</button>
+    <div class="live-status">
+      <span class="live-dot" [class.demo]="dataStatus.mode !== 'realtime'"></span>
+      <strong>{{dataStatus.mode === 'realtime' ? 'LIVE' : dataStatus.mode.toUpperCase()}}</strong>
+      <span>{{dataStatus.provider}}</span>
+      <span *ngIf="lastQuoteUpdate">Updated {{lastQuoteUpdate | date:'mediumTime'}}</span>
+      <button (click)="refresh()">↻ Refresh</button>
+    </div>
   </header>
 
   <div class="error" *ngIf="error">{{ error }}</div>
