@@ -151,10 +151,10 @@ export class AppComponent implements OnInit {
                 this.optionChain = chain;
                 this.unusualActivity = [];
                 this.optionsLoading = false;
+                const first = chain.contracts.find(x => x.optionType === this.optionType);
                 this.optionStrike = first?.strike || 0;
                 this.optionIv = first?.impliedVolatility || 0.30;
                 this.optionTargetPrice = this.quote(this.selectedSymbol)?.price || 0;
-                const first = chain.contracts.find(x => x.optionType === this.optionType);
                 if (first) this.strategyLegs = [{ optionType: first.optionType, side: 'BUY', strike: first.strike, expiration: this.selectedExpiration, quantity: 1, premium: (first.bid + first.ask) / 2, impliedVolatility: first.impliedVolatility || .30, contractSize: first.contractSize || 100 }];
                 this.loadOptionAnalytics();
                 this.loadOptionAlerts();
