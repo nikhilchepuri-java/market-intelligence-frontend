@@ -15,10 +15,19 @@
   </header>
 
   <div class="error" *ngIf="error">{{ error }}</div>
+  <section class="data-diagnostics" *ngIf="dataStatus.mode === 'realtime'">
+    <div><b>Data health</b> · {{dataStatus.message}}</div>
+    <div class="health-row">
+      <span [class.ok]="dataStatus.apiKeyConfigured">API key {{dataStatus.apiKeyConfigured ? 'configured' : 'missing'}}</span>
+      <span [class.ok]="dataStatus.quotesHealthy">Quotes {{dataStatus.quotesHealthy ? 'OK' : 'FAIL'}}</span>
+      <span [class.ok]="dataStatus.candlesHealthy">Candles {{dataStatus.candlesHealthy ? 'OK' : 'FAIL'}}</span>
+      <span [class.ok]="dataStatus.newsHealthy">News {{dataStatus.newsHealthy ? 'OK' : 'FAIL'}}</span>
+    </div>
+  </section>
 
   <section class="grid" *ngIf="!loading; else load">
     <article class="card symbol-card" *ngFor="let s of symbols" (click)="selectSymbol(s)" [class.selected]="selectedSymbol === s">
-      <div class="row"><strong>{{s}}</strong><span [class.up]="(quote(s)?.changePercent||0)>=0">{{(quote(s)?.changePercent||0)>=0?'▲':'▼'}} {{fmt(quote(s)?.changePercent)}}%</span></div>
+      <div class="row"><strong>{{s}}</strong><span [class.up]="(quote(s)?.changePercent||0)>=0">{{quote(s) ? ((quote(s)?.changePercent||0)>=0?'▲':'▼') : '•'}} {{fmt(quote(s)?.changePercent)}}%</span></div>
       <div class="price">{{fmt(quote(s)?.price)}}</div>
       <div class="muted">H {{fmt(quote(s)?.high)}} · L {{fmt(quote(s)?.low)}}</div>
       <div class="signal" *ngIf="signal(s)"><span>{{signal(s).signal}}</span><b>{{signal(s).score}}/100</b></div>
@@ -60,7 +69,7 @@
         <rect [attr.x]="bar.x - 2" [attr.y]="barBodyY(bar)" width="4" [attr.height]="barBodyHeight(bar)" class="candle" [class.up-fill]="bar.up"/>
       </g>
     </svg>
-    <ng-template #noChart><div class="empty">No historical candles returned.</div></ng-template>
+    <ng-template #noChart><div class="empty">No historical candles returned. Check Data health above for provider status.</div></ng-template>
   </section>
 
   <section class="panel" *ngIf="signal(selectedSymbol) as s">
@@ -82,7 +91,7 @@
         <div class="muted">{{item.source}} · {{item.publishedAt | date:'MMM d, HH:mm'}}</div>
         <p>{{item.summary}}</p>
       </article>
-      <div *ngIf="!newsLoading && !news.length" class="empty">No news returned. Check the Finnhub API key/provider configuration.</div>
+      <div *ngIf="!newsLoading && !news.length" class="empty">No news returned. Check Data health above for provider status.</div>
     </section>
 
     <section class="panel">
