@@ -1,7 +1,7 @@
 name: V3 Frontend CI
 on:
   push:
-    branches: [ main, 'v3-*' ]
+    branches: [ main, 'v3-*', 'realtime-*' ]
   pull_request:
     branches: [ main, 'v3-*' ]
 jobs:
