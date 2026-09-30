@@ -1,9 +1,10 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 
 interface Quote { symbol: string; price: number; change: number; changePercent: number; high: number; low: number; volume: number; timestamp: string; }
+interface DataStatus { provider: string; mode: string; optionsProvider: string; }
 interface Technical { symbol: string; price: number; sma20: number; sma50: number; sma200: number; ema9: number; ema21: number; ema50: number; rsi14: number; atr14: number; volume: number; averageVolume20: number; relativeVolume20: number; support1: number; support2: number; resistance1: number; resistance2: number; trend: string; conditionsMet: number; totalConditions: number; }
 interface Signal { symbol: string; signal: string; regime: string; score: number; trigger: string; invalidation: string; upsideScenario: string; downsideScenario: string; explanation: string; }
 interface NewsArticle { symbol: string; id: number; publishedAt: string; headline: string; source: string; summary: string; url: string; imageUrl: string; category: string; related: string; }
@@ -34,9 +35,12 @@ interface OptionAlertEvent { ruleId: number; underlying: string; symbol: string;
     templateUrl: './app.component.html',
     styleUrl: './app.component.css'
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
     private http = inject(HttpClient);
     api = 'http://localhost:8080/api';
+    dataStatus: DataStatus = { provider: 'unknown', mode: 'unknown', optionsProvider: 'unknown' };
+    lastQuoteUpdate: Date | null = null;
+    private refreshTimer?: ReturnType<typeof setInterval>;
 
     symbols = ['NDX', 'QQQ', 'SPY', 'AVGO', 'NVDA', 'AMD', 'TSLA'];
     quotes: Quote[] = [];
@@ -77,7 +81,33 @@ export class AppComponent implements OnInit {
     optionAlertsLoading = false;
     optionsLoading = false;
 
-    ngOnInit() { this.refresh(); }
+    ngOnInit() {
+        this.refresh();
+        this.loadDataStatus();
+        this.refreshTimer = setInterval(() => this.refreshQuotes(), 30000);
+    }
+
+    ngOnDestroy() {
+        if (this.refreshTimer) clearInterval(this.refreshTimer);
+    }
+
+    loadDataStatus() {
+        this.http.get<DataStatus>(`${this.api}/data-status`).subscribe({
+            next: x => this.dataStatus = x,
+            error: () => this.dataStatus = { provider: 'unknown', mode: 'unavailable', optionsProvider: 'unknown' }
+        });
+    }
+
+    refreshQuotes() {
+        this.http.get<Quote[]>(`${this.api}/quotes?symbols=${this.symbols.join(',')}`).subscribe({
+            next: q => {
+                this.quotes = q;
+                this.lastQuoteUpdate = new Date();
+                this.lastQuoteUpdate = new Date();
+            },
+            error: () => { this.error = 'Realtime market data is temporarily unavailable.'; }
+        });
+    }
 
     refresh() {
         this.loading = true;
