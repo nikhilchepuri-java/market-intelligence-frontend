@@ -41,6 +41,7 @@ export class AppComponent implements OnInit, OnDestroy {
     dataStatus: DataStatus = { provider: 'unknown', mode: 'unknown', optionsProvider: 'unknown' };
     lastQuoteUpdate: Date | null = null;
     private refreshTimer?: ReturnType<typeof setInterval>;
+    private detailRefreshTimer?: ReturnType<typeof setInterval>;
 
     symbols = ['NDX', 'QQQ', 'SPY', 'AVGO', 'NVDA', 'AMD', 'TSLA'];
     quotes: Quote[] = [];
@@ -85,10 +86,18 @@ export class AppComponent implements OnInit, OnDestroy {
         this.refresh();
         this.loadDataStatus();
         this.refreshTimer = setInterval(() => this.refreshQuotes(), 30000);
+        this.detailRefreshTimer = setInterval(() => this.refreshSelectedMarketData(), 60000);
     }
 
     ngOnDestroy() {
         if (this.refreshTimer) clearInterval(this.refreshTimer);
+        if (this.detailRefreshTimer) clearInterval(this.detailRefreshTimer);
+    }
+
+    refreshSelectedMarketData() {
+        this.loadTechnical(this.selectedSymbol);
+        this.loadSignal(this.selectedSymbol);
+        this.loadCandles(this.selectedSymbol);
     }
 
     loadDataStatus() {
