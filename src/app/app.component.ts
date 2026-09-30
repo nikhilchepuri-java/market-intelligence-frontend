@@ -14,6 +14,12 @@ interface OptionContract { symbol: string; underlying: string; optionType: 'CALL
 interface OptionChain { underlying: string; expiration: string; contracts: OptionContract[]; }
 interface UnusualOptionActivity { symbol: string; underlying: string; optionType: string; expiration: string; strike: number; volume: number; openInterest: number; volumeOpenInterestRatio: number; impliedVolatility: number; premium: number; reason: string; }
 interface OptionScenario { underlying: string; optionType: string; strike: number; underlyingPrice: number; targetUnderlyingPrice: number; impliedVolatility: number; theoreticalPrice: number; currentIntrinsicValue: number; targetIntrinsicValue: number; estimatedProfitLoss: number; estimatedReturnPercent: number; delta: number; gamma: number; theta: number; vega: number; rho: number; }
+interface FeaturePoint { symbol:string; timestamp:string; close:number; return1:number; sma20:number; sma50:number; ema21:number; rsi14:number; atr14:number; relativeVolume20:number; }
+interface BacktestTrade { entryTime:string; exitTime:string; entryPrice:number; exitPrice:number; quantity:number; profitLoss:number; returnPercent:number; reason:string; }
+interface BacktestResult { symbol:string; strategy:string; initialCapital:number; finalCapital:number; totalReturnPercent:number; maxDrawdownPercent:number; winRate:number; trades:number; tradesList:BacktestTrade[]; }
+interface PatternSignal { symbol:string; timestamp:string; pattern:string; direction:string; confidence:number; description:string; }
+interface WalkForwardFold { fold:number; trainSamples:number; testSamples:number; accuracy:number; precision:number; recall:number; f1:number; }
+interface WalkForwardResult { symbol:string; model:string; totalTrainSamples:number; totalTestSamples:number; accuracy:number; precision:number; recall:number; f1:number; folds:WalkForwardFold[]; }
 interface StrategyLeg { optionType: 'CALL'|'PUT'; side: 'BUY'|'SELL'; strike: number; expiration: string; quantity: number; premium: number; impliedVolatility: number; contractSize: number; }
 interface StrategyScenario { underlying: string; underlyingPrice: number; netPremium: number; maxProfit: number; maxLoss: number; breakevenPrices: number[]; delta: number; gamma: number; theta: number; vega: number; rho: number; payoff: { underlyingPrice: number; profitLoss: number }[]; }
 interface IvSurface { spotPrice: number; points: { expiration: string; optionType: string; strike: number; moneyness: number; impliedVolatility: number }[]; skews: { expiration: string; averageCallIv: number; averagePutIv: number; putCallSkew: number }[]; }
@@ -57,6 +63,9 @@ export class AppComponent implements OnInit {
     optionTargetPrice = 0;
     optionRate = 0.04;
     optionScenario: OptionScenario | null = null;
+    v3From = ''; v3To = ''; v3Capital = 100000; v3PositionFraction = 0.10; v3CostBps = 5; v3Strategy = 'SMA20';
+    featureStore: FeaturePoint[] = []; backtestResult: BacktestResult | null = null; patterns: PatternSignal[] = []; mlResult: WalkForwardResult | null = null;
+    mlTraining = 60; mlTest = 20; mlStep = 20; mlFolds = 5; mlRate = 0.01; mlEpochs = 50; v3Loading = false;
     strategyLegs: StrategyLeg[] = [];
     strategyScenario: StrategyScenario | null = null;
     ivSurface: IvSurface | null = null;
@@ -205,6 +214,12 @@ export class AppComponent implements OnInit {
         if (!this.selectedExpiration) return;
         this.http.post<OptionAlertEvent[]>(this.api + '/options/alerts/evaluate/' + this.selectedSymbol + '?expiration=' + this.selectedExpiration, {}).subscribe({ next: x => this.events = x as any });
     }
+    buildFeatureStore() { if (!this.v3From || !this.v3To) return; this.v3Loading=true; this.http.post<FeaturePoint[]>(this.api+'/v3/features/build?symbol='+this.selectedSymbol+'&from='+encodeURIComponent(new Date(this.v3From).toISOString())+'&to='+encodeURIComponent(new Date(this.v3To).toISOString()),{}).subscribe({next:x=>{this.featureStore=x;this.v3Loading=false},error:()=>this.v3Loading=false}); }
+    loadPatterns() { if(!this.v3From||!this.v3To)return; this.http.get<PatternSignal[]>(this.api+'/v3/patterns?symbol='+this.selectedSymbol+'&from='+encodeURIComponent(new Date(this.v3From).toISOString())+'&to='+encodeURIComponent(new Date(this.v3To).toISOString())).subscribe({next:x=>this.patterns=x}); }
+    runBacktest() { if(!this.v3From||!this.v3To)return; this.http.post<BacktestResult>(this.api+'/v3/backtest',{symbol:this.selectedSymbol,from:new Date(this.v3From).toISOString(),to:new Date(this.v3To).toISOString(),initialCapital:Number(this.v3Capital),positionFraction:Number(this.v3PositionFraction),transactionCostBps:Number(this.v3CostBps),strategy:this.v3Strategy}).subscribe({next:x=>this.backtestResult=x}); }
+    runWalkForward() { this.http.post<WalkForwardResult>(this.api+'/v3/ml/walk-forward?symbol='+this.selectedSymbol,{symbol:this.selectedSymbol,trainingSize:Number(this.mlTraining),testSize:Number(this.mlTest),step:Number(this.mlStep),folds:Number(this.mlFolds),learningRate:Number(this.mlRate),epochs:Number(this.mlEpochs)}).subscribe({next:x=>this.mlResult=x}); }
+    loadFeatures() { if(!this.v3From||!this.v3To)return; this.http.get<FeaturePoint[]>(this.api+'/v3/features?symbol='+this.selectedSymbol+'&from='+encodeURIComponent(new Date(this.v3From).toISOString())+'&to='+encodeURIComponent(new Date(this.v3To).toISOString())).subscribe({next:x=>this.featureStore=x}); }
+
     optionContracts(type: 'CALL'|'PUT') {
         return (this.optionChain?.contracts || []).filter(x => x.optionType === type).slice(0, 15);
     }
