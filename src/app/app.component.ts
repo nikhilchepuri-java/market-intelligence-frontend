@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 
 interface Quote { symbol: string; price: number; change: number; changePercent: number; high: number; low: number; volume: number; timestamp: string; }
-interface DataStatus { provider: string; mode: string; optionsProvider: string; }
+interface DataStatus { provider: string; mode: string; optionsProvider: string; apiKeyConfigured: boolean; quotesHealthy: boolean; candlesHealthy: boolean; newsHealthy: boolean; message: string; checkedAt: string; }
 interface Technical { symbol: string; price: number; sma20: number; sma50: number; sma200: number; ema9: number; ema21: number; ema50: number; rsi14: number; atr14: number; volume: number; averageVolume20: number; relativeVolume20: number; support1: number; support2: number; resistance1: number; resistance2: number; trend: string; conditionsMet: number; totalConditions: number; }
 interface Signal { symbol: string; signal: string; regime: string; score: number; trigger: string; invalidation: string; upsideScenario: string; downsideScenario: string; explanation: string; }
 interface NewsArticle { symbol: string; id: number; publishedAt: string; headline: string; source: string; summary: string; url: string; imageUrl: string; category: string; related: string; }
@@ -38,7 +38,7 @@ interface OptionAlertEvent { ruleId: number; underlying: string; symbol: string;
 export class AppComponent implements OnInit, OnDestroy {
     private http = inject(HttpClient);
     api = 'http://localhost:8080/api';
-    dataStatus: DataStatus = { provider: 'unknown', mode: 'unknown', optionsProvider: 'unknown' };
+    dataStatus: DataStatus = { provider: 'unknown', mode: 'unknown', optionsProvider: 'unknown', apiKeyConfigured: false, quotesHealthy: false, candlesHealthy: false, newsHealthy: false, message: '', checkedAt: '' };
     lastQuoteUpdate: Date | null = null;
     private refreshTimer?: ReturnType<typeof setInterval>;
     private detailRefreshTimer?: ReturnType<typeof setInterval>;
@@ -103,16 +103,16 @@ export class AppComponent implements OnInit, OnDestroy {
     loadDataStatus() {
         this.http.get<DataStatus>(`${this.api}/data-status`).subscribe({
             next: x => this.dataStatus = x,
-            error: () => this.dataStatus = { provider: 'unknown', mode: 'unavailable', optionsProvider: 'unknown' }
+            error: () => this.dataStatus = { provider: 'unknown', mode: 'unavailable', optionsProvider: 'unknown', apiKeyConfigured: false, quotesHealthy: false, candlesHealthy: false, newsHealthy: false, message: 'Data status endpoint is unavailable.', checkedAt: '' }
         });
     }
 
     refreshQuotes() {
         this.http.get<Quote[]>(`${this.api}/quotes?symbols=${this.symbols.join(',')}`).subscribe({
             next: q => {
-                this.quotes = q;
+                this.quotes = q.filter(x => Number.isFinite(x.price) && x.price > 0);
                 this.lastQuoteUpdate = new Date();
-                this.lastQuoteUpdate = new Date();
+                this.loadDataStatus();
             },
             error: () => { this.error = 'Realtime market data is temporarily unavailable.'; }
         });
@@ -123,7 +123,8 @@ export class AppComponent implements OnInit, OnDestroy {
         this.error = '';
         this.http.get<Quote[]>(`${this.api}/quotes?symbols=${this.symbols.join(',')}`).subscribe({
             next: q => {
-                this.quotes = q;
+                this.quotes = q.filter(x => Number.isFinite(x.price) && x.price > 0);
+                this.loadDataStatus();
                 this.symbols.forEach(s => {
                     this.loadTechnical(s);
                     this.loadSignal(s);
@@ -158,7 +159,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
     loadCandles(symbol: string) {
         this.http.get<Candle[]>(`${this.api}/candles/${symbol}?timeframe=1D`).subscribe({
-            next: x => this.candles[symbol] = x.slice(-90)
+            next: x => this.candles[symbol] = x.slice(-90),
+            error: e => { this.candles[symbol] = []; if (!this.error) this.error = e?.error?.message || `Historical candles unavailable for ${symbol}.`; }
         });
     }
 
@@ -172,7 +174,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
         this.http.get<NewsArticle[]>(`${this.api}/news/${this.selectedSymbol}?from=${from}&to=${to}`).subscribe({
             next: x => { this.news = x.slice(0, 12); this.newsLoading = false; },
-            error: () => { this.news = []; this.newsLoading = false; }
+            error: (e) => { this.news = []; this.newsLoading = false; if (!this.error) this.error = e?.error?.message || `News unavailable for ${this.selectedSymbol}.`; this.loadDataStatus(); }
         });
         this.loadAlerts();
         this.loadOptions();
@@ -302,7 +304,7 @@ export class AppComponent implements OnInit, OnDestroy {
     quote(symbol: string) { return this.quotes.find(x => x.symbol === symbol); }
     technical(symbol: string) { return this.technicals[symbol]; }
     signal(symbol: string) { return this.signals[symbol]; }
-    fmt(n: number | undefined) { return n == null ? '-' : n.toLocaleString(undefined, { maximumFractionDigits: 2 }); }
+    fmt(n: number | undefined | null) { return n == null || !Number.isFinite(n) ? '—' : n.toLocaleString(undefined, { maximumFractionDigits: 2 }); }
 
     chartBars(symbol: string) {
         const data = this.candles[symbol] || [];
