@@ -243,5 +243,55 @@
     <div *ngIf="optionAlertsLoading" class="empty">Loading option alerts…</div>
   </section>
 
+
+  <section class="panel v3-panel">
+    <div class="panel-head"><div><h2>V3 Research Lab</h2><span class="badge">Feature store · Backtest · Patterns · ML</span></div></div>
+    <div class="v3-controls">
+      <label>From <input type="datetime-local" [(ngModel)]="v3From"></label>
+      <label>To <input type="datetime-local" [(ngModel)]="v3To"></label>
+      <button (click)="buildFeatureStore()">Build feature store</button>
+      <button (click)="loadFeatures()">Load features</button>
+      <button (click)="loadPatterns()">Detect patterns</button>
+    </div>
+    <div class="v3-summary">
+      <div><label>Stored features</label><b>{{featureStore.length}}</b></div>
+      <div><label>Patterns</label><b>{{patterns.length}}</b></div>
+      <div><label>Latest close</label><b>{{featureStore.length ? fmt(featureStore[featureStore.length-1].close) : '-'}}</b></div>
+      <div><label>Latest RSI</label><b>{{featureStore.length ? fmt(featureStore[featureStore.length-1].rsi14) : '-'}}</b></div>
+    </div>
+    <div class="v3-table" *ngIf="featureStore.length">
+      <div class="v3-row head"><span>Time</span><span>Close</span><span>Return</span><span>SMA20</span><span>SMA50</span><span>RSI</span><span>ATR</span><span>Rel Vol</span></div>
+      <div class="v3-row" *ngFor="let x of featureStore | slice:-20"><span>{{x.timestamp | date:'shortDate'}}</span><span>{{fmt(x.close)}}</span><span>{{fmt(x.return1*100)}}%</span><span>{{fmt(x.sma20)}}</span><span>{{fmt(x.sma50)}}</span><span>{{fmt(x.rsi14)}}</span><span>{{fmt(x.atr14)}}</span><span>{{fmt(x.relativeVolume20)}}x</span></div>
+    </div>
+  </section>
+
+  <section class="two-col v3-panel">
+    <section class="panel">
+      <div class="panel-head"><div><h2>Backtesting</h2><span class="badge">V3.2</span></div><button class="small" (click)="runBacktest()">Run</button></div>
+      <div class="v3-form">
+        <label>Strategy <select [(ngModel)]="v3Strategy"><option value="SMA20">SMA20 crossover</option><option value="RSI">RSI recovery</option><option value="PATTERN">Pattern signals</option></select></label>
+        <label>Capital <input type="number" [(ngModel)]="v3Capital"></label>
+        <label>Position fraction <input type="number" step=".01" [(ngModel)]="v3PositionFraction"></label>
+        <label>Cost bps <input type="number" [(ngModel)]="v3CostBps"></label>
+      </div>
+      <div class="v3-summary" *ngIf="backtestResult as b"><div><label>Final capital</label><b>{{fmt(b.finalCapital)}}</b></div><div><label>Total return</label><b>{{fmt(b.totalReturnPercent)}}%</b></div><div><label>Max drawdown</label><b>{{fmt(b.maxDrawdownPercent)}}%</b></div><div><label>Win rate</label><b>{{fmt(b.winRate)}}%</b></div><div><label>Trades</label><b>{{b.trades}}</b></div></div>
+      <div class="v3-table" *ngIf="backtestResult?.tradesList?.length"><div class="v3-row head"><span>Entry</span><span>Exit</span><span>Entry Px</span><span>Exit Px</span><span>P/L</span><span>Return</span></div><div class="v3-row" *ngFor="let t of backtestResult!.tradesList | slice:-15"><span>{{t.entryTime | date:'shortDate'}}</span><span>{{t.exitTime | date:'shortDate'}}</span><span>{{fmt(t.entryPrice)}}</span><span>{{fmt(t.exitPrice)}}</span><span>{{fmt(t.profitLoss)}}</span><span>{{fmt(t.returnPercent)}}%</span></div></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><h2>Pattern engine</h2><span class="badge">V3.3</span></div></div>
+      <div class="pattern-row" *ngFor="let p of patterns | slice:-15"><span>{{p.timestamp | date:'shortDate'}}</span><b>{{p.pattern}}</b><span>{{p.direction}}</span><span>{{fmt(p.confidence*100)}}%</span></div>
+      <div class="empty" *ngIf="!patterns.length">Build/load a feature window, then detect patterns.</div>
+    </section>
+  </section>
+
+  <section class="panel v3-panel">
+    <div class="panel-head"><div><h2>Walk-forward ML validation</h2><span class="badge">V3.4 · Logistic regression</span></div><button class="small" (click)="runWalkForward()">Validate</button></div>
+    <div class="v3-form"><label>Train <input type="number" [(ngModel)]="mlTraining"></label><label>Test <input type="number" [(ngModel)]="mlTest"></label><label>Step <input type="number" [(ngModel)]="mlStep"></label><label>Folds <input type="number" [(ngModel)]="mlFolds"></label><label>Learning rate <input type="number" step=".001" [(ngModel)]="mlRate"></label><label>Epochs <input type="number" [(ngModel)]="mlEpochs"></label></div>
+    <div class="v3-summary" *ngIf="mlResult as m"><div><label>Accuracy</label><b>{{fmt(m.accuracy*100)}}%</b></div><div><label>Precision</label><b>{{fmt(m.precision*100)}}%</b></div><div><label>Recall</label><b>{{fmt(m.recall*100)}}%</b></div><div><label>F1</label><b>{{fmt(m.f1*100)}}%</b></div><div><label>Train samples</label><b>{{m.totalTrainSamples}}</b></div><div><label>Test samples</label><b>{{m.totalTestSamples}}</b></div></div>
+    <div class="v3-table" *ngIf="mlResult as m"><div class="v3-row head"><span>Fold</span><span>Train</span><span>Test</span><span>Accuracy</span><span>Precision</span><span>Recall</span><span>F1</span></div><div class="v3-row" *ngFor="let f of m.folds"><span>{{f.fold}}</span><span>{{f.trainSamples}}</span><span>{{f.testSamples}}</span><span>{{fmt(f.accuracy*100)}}%</span><span>{{fmt(f.precision*100)}}%</span><span>{{fmt(f.recall*100)}}%</span><span>{{fmt(f.f1*100)}}%</span></div></div>
+    <p class="research-note">Walk-forward metrics are out-of-sample within each chronological fold; they are not a guarantee of future market performance.</p>
+  </section>
+
   <footer>Signals and alerts are transparent rule-based analytics. They do not predict markets or execute trades.</footer>
 </div>
