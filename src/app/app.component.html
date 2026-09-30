@@ -28,8 +28,9 @@
   <section class="grid" *ngIf="!loading; else load">
     <article class="card symbol-card" *ngFor="let s of symbols" (click)="selectSymbol(s)" [class.selected]="selectedSymbol === s">
       <div class="row"><strong>{{s}}</strong><span [class.up]="(quote(s)?.changePercent||0)>=0">{{quote(s) ? ((quote(s)?.changePercent||0)>=0?'▲':'▼') : '•'}} {{fmt(quote(s)?.changePercent)}}%</span></div>
-      <div class="price">{{fmt(quote(s)?.price)}}</div>
-      <div class="muted">H {{fmt(quote(s)?.high)}} · L {{fmt(quote(s)?.low)}}</div>
+      <div class="price">{{unavailableSymbols.has(s) ? 'Unavailable' : fmt(quote(s)?.price)}}</div>
+      <div class="muted" *ngIf="unavailableSymbols.has(s)">Provider entitlement unavailable</div>
+      <div class="muted" *ngIf="!unavailableSymbols.has(s)">H {{fmt(quote(s)?.high)}} · L {{fmt(quote(s)?.low)}}</div>
       <div class="signal" *ngIf="signal(s)"><span>{{signal(s).signal}}</span><b>{{signal(s).score}}/100</b></div>
     </article>
   </section>
