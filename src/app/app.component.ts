@@ -45,6 +45,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     symbols = ['NDX', 'QQQ', 'SPY', 'AVGO', 'NVDA', 'AMD', 'TSLA'];
     quotes: Quote[] = [];
+    unavailableSymbols = new Set<string>();
     technicals: Record<string, Technical> = {};
     signals: Record<string, Signal> = {};
     candles: Record<string, Candle[]> = {};
@@ -111,6 +112,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.http.get<Quote[]>(`${this.api}/quotes?symbols=${this.symbols.join(',')}`).subscribe({
             next: q => {
                 this.quotes = q.filter(x => Number.isFinite(x.price) && x.price > 0);
+                this.unavailableSymbols = new Set(this.symbols.filter(s => !this.quotes.some(q => q.symbol === s)));
                 this.lastQuoteUpdate = new Date();
                 this.loadDataStatus();
             },
@@ -124,6 +126,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.http.get<Quote[]>(`${this.api}/quotes?symbols=${this.symbols.join(',')}`).subscribe({
             next: q => {
                 this.quotes = q.filter(x => Number.isFinite(x.price) && x.price > 0);
+                this.unavailableSymbols = new Set(this.symbols.filter(s => !this.quotes.some(q => q.symbol === s)));
                 this.loadDataStatus();
                 this.symbols.forEach(s => {
                     this.loadTechnical(s);
