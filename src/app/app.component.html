@@ -171,5 +171,77 @@
     </div>
   </section>
 
+
+  <section class="panel advanced-options">
+    <div class="panel-head"><div><h2>Multi-leg strategy builder</h2><span class="badge">V2.6</span></div><button class="small" (click)="runStrategy()">Run strategy</button></div>
+    <div class="strategy-legs">
+      <div class="strategy-leg" *ngFor="let leg of strategyLegs; let i = index">
+        <select [(ngModel)]="leg.side"><option value="BUY">Buy</option><option value="SELL">Sell</option></select>
+        <select [(ngModel)]="leg.optionType"><option value="CALL">Call</option><option value="PUT">Put</option></select>
+        <input type="number" [(ngModel)]="leg.strike" placeholder="Strike">
+        <input type="number" [(ngModel)]="leg.quantity" min="1" placeholder="Qty">
+        <input type="number" step="0.01" [(ngModel)]="leg.premium" placeholder="Premium">
+        <input type="number" step="0.01" [(ngModel)]="leg.impliedVolatility" placeholder="IV">
+        <button class="danger" (click)="removeStrategyLeg(i)">Remove</button>
+      </div>
+    </div>
+    <button class="small" (click)="addStrategyLeg()">+ Add leg</button>
+    <div class="scenario-result" *ngIf="strategyScenario as s">
+      <div><label>Net premium</label><b>{{fmt(s.netPremium)}}</b></div>
+      <div><label>Max profit (grid)</label><b>{{fmt(s.maxProfit)}}</b></div>
+      <div><label>Max loss (grid)</label><b>{{fmt(s.maxLoss)}}</b></div>
+      <div><label>Breakevens</label><b>{{s.breakevenPrices.length ? s.breakevenPrices.join(', ') : '-'}}</b></div>
+      <div><label>Delta</label><b>{{fmt(s.delta)}}</b></div><div><label>Gamma</label><b>{{fmt(s.gamma)}}</b></div>
+      <div><label>Theta/day</label><b>{{fmt(s.theta)}}</b></div><div><label>Vega</label><b>{{fmt(s.vega)}}</b></div>
+    </div>
+  </section>
+
+  <section class="two-col advanced-options">
+    <section class="panel">
+      <div class="panel-head"><div><h2>IV surface / skew</h2><span class="badge">V2.7</span></div></div>
+      <div class="skew-row" *ngFor="let x of ivSurface?.skews">
+        <span>{{x.expiration}}</span><span>Call IV {{fmt(x.averageCallIv * 100)}}%</span><span>Put IV {{fmt(x.averagePutIv * 100)}}%</span><b>Skew {{fmt(x.putCallSkew * 100)}}%</b>
+      </div>
+      <div class="option-table" *ngIf="ivSurface">
+        <div class="option-head"><span>Expiry</span><span>Type</span><span>Strike</span><span>Moneyness</span><span>IV</span></div>
+        <div class="option-row surface-row" *ngFor="let x of ivSurface.points | slice:0:30">
+          <span>{{x.expiration}}</span><span>{{x.optionType}}</span><span>{{fmt(x.strike)}}</span><span>{{fmt(x.moneyness)}}x</span><span>{{fmt(x.impliedVolatility * 100)}}%</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><h2>Put/call flow analytics</h2><span class="badge">V2.8</span></div></div>
+      <div class="scenario-result" *ngIf="flowAnalytics as f">
+        <div><label>Call OI</label><b>{{f.callOpenInterest}}</b></div><div><label>Put OI</label><b>{{f.putOpenInterest}}</b></div>
+        <div><label>Put/Call OI</label><b>{{fmt(f.putCallOpenInterestRatio)}}x</b></div><div><label>Call volume</label><b>{{f.callVolume}}</b></div>
+        <div><label>Put volume</label><b>{{f.putVolume}}</b></div><div><label>Put/Call volume</label><b>{{fmt(f.putCallVolumeRatio)}}x</b></div>
+        <div><label>Call volume share</label><b>{{fmt(f.callVolumeShare * 100)}}%</b></div><div><label>Put volume share</label><b>{{fmt(f.putVolumeShare * 100)}}%</b></div>
+      </div>
+    </section>
+  </section>
+
+  <section class="panel advanced-options">
+    <div class="panel-head"><div><h2>Options alerts</h2><span class="badge">V2.9</span></div><button class="small" (click)="evaluateOptionAlerts()">Evaluate now</button></div>
+    <div class="alert-form">
+      <select [(ngModel)]="optionAlertType">
+        <option value="VOLUME_OI_RATIO_ABOVE">Volume/OI ratio above</option>
+        <option value="IMPLIED_VOLATILITY_ABOVE">IV above</option>
+        <option value="IMPLIED_VOLATILITY_BELOW">IV below</option>
+        <option value="OPEN_INTEREST_ABOVE">Open interest above</option>
+        <option value="VOLUME_ABOVE">Volume above</option>
+        <option value="PREMIUM_ABOVE">Premium traded above</option>
+      </select>
+      <input type="number" step="0.01" [(ngModel)]="optionAlertThreshold" placeholder="Threshold">
+      <input type="number" [(ngModel)]="optionAlertCooldown" placeholder="Cooldown seconds">
+      <button (click)="createOptionAlert()">Add option alert</button>
+    </div>
+    <div class="alert-row" *ngFor="let alert of optionAlerts">
+      <span><b>{{alert.type}}</b> · {{fmt(alert.threshold)}} · {{alert.symbol || 'all contracts'}}</span>
+      <button class="danger" (click)="deleteOptionAlert(alert.id)">Delete</button>
+    </div>
+    <div *ngIf="optionAlertsLoading" class="empty">Loading option alerts…</div>
+  </section>
+
   <footer>Signals and alerts are transparent rule-based analytics. They do not predict markets or execute trades.</footer>
 </div>

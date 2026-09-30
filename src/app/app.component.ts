@@ -14,6 +14,12 @@ interface OptionContract { symbol: string; underlying: string; optionType: 'CALL
 interface OptionChain { underlying: string; expiration: string; contracts: OptionContract[]; }
 interface UnusualOptionActivity { symbol: string; underlying: string; optionType: string; expiration: string; strike: number; volume: number; openInterest: number; volumeOpenInterestRatio: number; impliedVolatility: number; premium: number; reason: string; }
 interface OptionScenario { underlying: string; optionType: string; strike: number; underlyingPrice: number; targetUnderlyingPrice: number; impliedVolatility: number; theoreticalPrice: number; currentIntrinsicValue: number; targetIntrinsicValue: number; estimatedProfitLoss: number; estimatedReturnPercent: number; delta: number; gamma: number; theta: number; vega: number; rho: number; }
+interface StrategyLeg { optionType: 'CALL'|'PUT'; side: 'BUY'|'SELL'; strike: number; expiration: string; quantity: number; premium: number; impliedVolatility: number; contractSize: number; }
+interface StrategyScenario { underlying: string; underlyingPrice: number; netPremium: number; maxProfit: number; maxLoss: number; breakevenPrices: number[]; delta: number; gamma: number; theta: number; vega: number; rho: number; payoff: { underlyingPrice: number; profitLoss: number }[]; }
+interface IvSurface { spotPrice: number; points: { expiration: string; optionType: string; strike: number; moneyness: number; impliedVolatility: number }[]; skews: { expiration: string; averageCallIv: number; averagePutIv: number; putCallSkew: number }[]; }
+interface OptionFlowAnalytics { underlying: string; callOpenInterest: number; putOpenInterest: number; putCallOpenInterestRatio: number; callVolume: number; putVolume: number; putCallVolumeRatio: number; totalOpenInterest: number; totalVolume: number; callVolumeShare: number; putVolumeShare: number; }
+interface OptionAlertRule { id: number; underlying: string; symbol: string; type: string; threshold: number; enabled: boolean; cooldownSeconds: number; }
+interface OptionAlertEvent { ruleId: number; underlying: string; symbol: string; type: string; value: number; threshold: number; triggeredAt: string; message: string; }
 
 @Component({
     selector: 'app-root',
@@ -51,6 +57,15 @@ export class AppComponent implements OnInit {
     optionTargetPrice = 0;
     optionRate = 0.04;
     optionScenario: OptionScenario | null = null;
+    strategyLegs: StrategyLeg[] = [];
+    strategyScenario: StrategyScenario | null = null;
+    ivSurface: IvSurface | null = null;
+    flowAnalytics: OptionFlowAnalytics | null = null;
+    optionAlerts: OptionAlertRule[] = [];
+    optionAlertType = 'VOLUME_OI_RATIO_ABOVE';
+    optionAlertThreshold = 2;
+    optionAlertCooldown = 300;
+    optionAlertsLoading = false;
     optionsLoading = false;
 
     ngOnInit() { this.refresh(); }
@@ -140,6 +155,9 @@ export class AppComponent implements OnInit {
                 this.optionStrike = first?.strike || 0;
                 this.optionIv = first?.impliedVolatility || 0.30;
                 this.optionTargetPrice = this.quote(this.selectedSymbol)?.price || 0;
+                if (first) this.strategyLegs = [{ optionType: first.optionType, side: 'BUY', strike: first.strike, expiration: this.selectedExpiration, quantity: 1, premium: (first.bid + first.ask) / 2, impliedVolatility: first.impliedVolatility || .30, contractSize: first.contractSize || 100 }];
+                this.loadOptionAnalytics();
+                this.loadOptionAlerts();
                 this.http.get<UnusualOptionActivity[]>(`${this.api}/options/${this.selectedSymbol}/unusual?expiration=${this.selectedExpiration}`).subscribe({ next: x => this.unusualActivity = x.slice(0, 12) });
             },
             error: () => { this.optionChain = null; this.optionsLoading = false; }
@@ -160,6 +178,33 @@ export class AppComponent implements OnInit {
         }).subscribe({ next: x => this.optionScenario = x });
     }
 
+    loadOptionAnalytics() {
+        const spot = this.quote(this.selectedSymbol)?.price || 0;
+        const expirations = this.optionExpirations.slice(0, 4).join(',');
+        if (spot && expirations) this.http.get<IvSurface>(this.api + '/options/' + this.selectedSymbol + '/iv-surface?spot=' + spot + '&expirations=' + expirations).subscribe({ next: x => this.ivSurface = x });
+        if (this.selectedExpiration) this.http.get<OptionFlowAnalytics>(this.api + '/options/' + this.selectedSymbol + '/flow?expiration=' + this.selectedExpiration).subscribe({ next: x => this.flowAnalytics = x });
+    }
+    addStrategyLeg() { this.strategyLegs = [...this.strategyLegs, { optionType: 'CALL', side: 'SELL', strike: this.optionStrike || 0, expiration: this.selectedExpiration, quantity: 1, premium: 0, impliedVolatility: this.optionIv || .30, contractSize: 100 }]; }
+    removeStrategyLeg(index: number) { this.strategyLegs = this.strategyLegs.filter((_, i) => i !== index); }
+    runStrategy() {
+        const spot = this.quote(this.selectedSymbol)?.price || 0;
+        const strikes = this.strategyLegs.map(x => x.strike).filter(x => x > 0);
+        if (!spot || !this.strategyLegs.length || !strikes.length) return;
+        const min = Math.max(0.01, Math.min(...strikes) * .7); const max = Math.max(...strikes) * 1.3;
+        this.http.post<StrategyScenario>(this.api + '/options/strategies/scenario', { underlying: this.selectedSymbol, underlyingPrice: spot, riskFreeRate: this.optionRate, legs: this.strategyLegs, gridMinPrice: min, gridMaxPrice: max, gridPoints: 101 }).subscribe({ next: x => this.strategyScenario = x });
+    }
+    loadOptionAlerts() {
+        this.optionAlertsLoading = true;
+        this.http.get<OptionAlertRule[]>(this.api + '/options/alerts?underlying=' + this.selectedSymbol).subscribe({ next: x => { this.optionAlerts = x; this.optionAlertsLoading = false; }, error: () => this.optionAlertsLoading = false });
+    }
+    createOptionAlert() {
+        this.http.post<OptionAlertRule>(this.api + '/options/alerts', { id: 0, underlying: this.selectedSymbol, symbol: '', type: this.optionAlertType, threshold: Number(this.optionAlertThreshold), enabled: true, cooldownSeconds: Number(this.optionAlertCooldown) }).subscribe({ next: x => this.optionAlerts = [...this.optionAlerts, x] });
+    }
+    deleteOptionAlert(id: number) { this.http.delete(this.api + '/options/alerts/' + id).subscribe({ next: () => this.optionAlerts = this.optionAlerts.filter(x => x.id !== id) }); }
+    evaluateOptionAlerts() {
+        if (!this.selectedExpiration) return;
+        this.http.post<OptionAlertEvent[]>(this.api + '/options/alerts/evaluate/' + this.selectedSymbol + '?expiration=' + this.selectedExpiration, {}).subscribe({ next: x => this.events = x as any });
+    }
     optionContracts(type: 'CALL'|'PUT') {
         return (this.optionChain?.contracts || []).filter(x => x.optionType === type).slice(0, 15);
     }
