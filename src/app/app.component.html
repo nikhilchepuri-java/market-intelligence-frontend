@@ -62,7 +62,7 @@
   </section>
 
   <section class="panel chart-panel">
-    <div class="panel-head"><h2>{{selectedSymbol}} · 90-day candles</h2><span class="muted">Daily OHLC</span></div>
+    <div class="panel-head"><h2>{{candleTitle(selectedSymbol)}}</h2><span class="muted">Daily OHLC</span></div>
     <svg viewBox="0 0 800 240" preserveAspectRatio="none" class="chart" *ngIf="chartBars(selectedSymbol).length; else noChart">
       <line x1="10" y1="220" x2="790" y2="220" class="axis"/>
       <g *ngFor="let bar of chartBars(selectedSymbol)">
