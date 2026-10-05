@@ -6,6 +6,7 @@ import { HttpClient } from '@angular/common/http';
 interface Quote { symbol: string; price: number; change: number; changePercent: number; high: number; low: number; volume: number; timestamp: string; }
 interface DataStatus { provider: string; mode: string; optionsProvider: string; apiKeyConfigured: boolean; quotesHealthy: boolean; candlesHealthy: boolean; newsHealthy: boolean; message: string; checkedAt: string; }
 interface Technical { symbol: string; price: number; sma20: number; sma50: number; sma200: number; ema9: number; ema21: number; ema50: number; rsi14: number; atr14: number; volume: number; averageVolume20: number; relativeVolume20: number; support1: number; support2: number; resistance1: number; resistance2: number; trend: string; conditionsMet: number; totalConditions: number; }
+interface MarketIntelligence { symbol:string; marketRegime:string; bias:string; recommendation:string; score:number; technicalScore:number; newsScore:number; marketScore:number; optionsScore:number; strategy:string; entryTrigger:string; stopTrigger:string; profitTarget:string; maxRisk:number; maxProfit:number; riskLevel:string; reasons:string[]; warnings:string[]; disclaimer:string; }
 interface Signal { symbol: string; signal: string; regime: string; score: number; trigger: string; invalidation: string; upsideScenario: string; downsideScenario: string; explanation: string; }
 interface NewsArticle { symbol: string; id: number; publishedAt: string; headline: string; source: string; summary: string; url: string; imageUrl: string; category: string; related: string; }
 interface Candle { symbol: string; timeframe: string; timestamp: string; open: number; high: number; low: number; close: number; volume: number; }
@@ -48,6 +49,7 @@ export class AppComponent implements OnInit, OnDestroy {
     unavailableSymbols = new Set<string>();
     technicals: Record<string, Technical> = {};
     signals: Record<string, Signal> = {};
+    intelligence: MarketIntelligence | null = null;
     candles: Record<string, Candle[]> = {};
     news: NewsArticle[] = [];
     alerts: AlertRule[] = [];
@@ -99,6 +101,7 @@ export class AppComponent implements OnInit, OnDestroy {
     refreshSelectedMarketData() {
         this.loadTechnical(this.selectedSymbol);
         this.loadSignal(this.selectedSymbol);
+        this.loadIntelligence(this.selectedSymbol);
         this.loadCandles(this.selectedSymbol);
     }
 
@@ -155,6 +158,12 @@ export class AppComponent implements OnInit, OnDestroy {
         });
     }
 
+    loadIntelligence(symbol: string) {
+        this.http.get<MarketIntelligence>(`${this.api}/intelligence/${symbol}`).subscribe({
+            next: x => this.intelligence = x
+        });
+    }
+
     loadSignal(symbol: string) {
         this.http.get<Signal>(`${this.api}/signals/${symbol}`).subscribe({
             next: x => this.signals[symbol] = x
@@ -162,7 +171,8 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     candleTitle(symbol: string) {
-        return symbol === 'NDX' ? 'NDX · 90-day candles (QQQ proxy)' : `${symbol} · 90-day candles`;
+        const label = this.candleRangeLabel();
+        return symbol === 'NDX' ? `NDX · ${label} candles (QQQ proxy)` : `${symbol} · ${label} candles`;
     }
 
     setCandleRange(range: '7D' | '30D' | '90D') {
@@ -178,7 +188,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     loadCandles(symbol: string) {
         this.http.get<Candle[]>(`${this.api}/candles/${symbol}?timeframe=1D&range=${this.candleRange}`).subscribe({
-            next: x => this.candles[symbol] = x.slice(-90),
+            next: x => this.candles[symbol] = x,
             error: e => { this.candles[symbol] = []; if (!this.error) this.error = e?.error?.message || `Historical candles unavailable for ${symbol}.`; }
         });
     }
