@@ -61,6 +61,18 @@
     </div>
   </section>
 
+  <section class="panel intelligence-panel" *ngIf="intelligence as i">
+    <div class="panel-head"><div><h2>{{i.symbol}} decision engine</h2><span class="badge">{{i.marketRegime}}</span></div><div class="score">{{i.score}}/100 · {{i.recommendation}}</div></div>
+    <div class="metrics">
+      <div><label>Bias</label><b>{{i.bias}}</b></div><div><label>Strategy</label><b>{{i.strategy}}</b></div>
+      <div><label>Technical</label><b>{{i.technicalScore}}/100</b></div><div><label>Market</label><b>{{i.marketScore}}/100</b></div>
+      <div><label>News</label><b>{{i.newsScore}}/100</b></div><div><label>Options</label><b>{{i.optionsScore}}/100</b></div>
+    </div>
+    <div class="cols"><div><label>Entry</label><p>{{i.entryTrigger}}</p></div><div><label>Stop / invalidation</label><p>{{i.stopTrigger}}</p></div><div><label>Target</label><p>{{i.profitTarget}}</p></div><div><label>Risk</label><p>{{i.riskLevel}}</p></div></div>
+    <div class="cols"><div><label>Why</label><p *ngFor="let reason of i.reasons">✓ {{reason}}</p></div><div><label>Warnings</label><p *ngFor="let warning of i.warnings">⚠ {{warning}}</p></div></div>
+    <div class="muted">{{i.disclaimer}}</div>
+  </section>
+
   <section class="panel chart-panel">
     <div class="panel-head"><div><h2>{{candleTitle(selectedSymbol)}}</h2><span class="muted">Daily OHLC</span></div><div class="candle-range"><button [class.active]="candleRange === '7D'" (click)="setCandleRange('7D')">7D</button><button [class.active]="candleRange === '30D'" (click)="setCandleRange('30D')">30D</button><button [class.active]="candleRange === '90D'" (click)="setCandleRange('90D')">90D</button></div></div>
     <svg viewBox="0 0 800 240" preserveAspectRatio="none" class="chart" *ngIf="chartBars(selectedSymbol).length; else noChart">
