@@ -174,9 +174,7 @@ export class AppComponent implements OnInit, OnDestroy {
         return this.candleRange === '7D' ? '7-day' : this.candleRange === '30D' ? '30-day' : '90-day';
     }
 
-    candleTitle(symbol: string) {
-        return symbol === 'NDX' ? `NDX · ${this.candleRangeLabel()} candles (QQQ proxy)` : `${symbol} · ${this.candleRangeLabel()} candles`;
-    }
+
 
     loadCandles(symbol: string) {
         this.http.get<Candle[]>(`${this.api}/candles/${symbol}?timeframe=1D&range=${this.candleRange}`).subscribe({
