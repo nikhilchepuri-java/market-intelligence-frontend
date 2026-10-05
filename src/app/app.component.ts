@@ -160,8 +160,12 @@ export class AppComponent implements OnInit, OnDestroy {
         });
     }
 
+    candleTitle(symbol: string) {
+        return symbol === 'NDX' ? 'NDX · 90-day candles (QQQ proxy)' : `${symbol} · 90-day candles`;
+    }
+
     loadCandles(symbol: string) {
-        this.http.get<Candle[]>(`${this.api}/candles/${symbol}?timeframe=1D`).subscribe({
+        this.http.get<Candle[]>(`${this.api}/candles/${symbol}?timeframe=1D&range=90D`).subscribe({
             next: x => this.candles[symbol] = x.slice(-90),
             error: e => { this.candles[symbol] = []; if (!this.error) this.error = e?.error?.message || `Historical candles unavailable for ${symbol}.`; }
         });
