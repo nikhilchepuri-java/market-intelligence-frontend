@@ -53,6 +53,7 @@ export class AppComponent implements OnInit, OnDestroy {
     alerts: AlertRule[] = [];
     events: AlertEvent[] = [];
     selectedSymbol = 'NDX';
+    candleRange: '7D' | '30D' | '90D' = '90D';
     loading = true;
     newsLoading = false;
     alertType = 'PRICE_ABOVE';
@@ -164,8 +165,21 @@ export class AppComponent implements OnInit, OnDestroy {
         return symbol === 'NDX' ? 'NDX · 90-day candles (QQQ proxy)' : `${symbol} · 90-day candles`;
     }
 
+    setCandleRange(range: '7D' | '30D' | '90D') {
+        this.candleRange = range;
+        this.loadCandles(this.selectedSymbol);
+    }
+
+    candleRangeLabel() {
+        return this.candleRange === '7D' ? '7-day' : this.candleRange === '30D' ? '30-day' : '90-day';
+    }
+
+    candleTitle(symbol: string) {
+        return symbol === 'NDX' ? `NDX · ${this.candleRangeLabel()} candles (QQQ proxy)` : `${symbol} · ${this.candleRangeLabel()} candles`;
+    }
+
     loadCandles(symbol: string) {
-        this.http.get<Candle[]>(`${this.api}/candles/${symbol}?timeframe=1D&range=90D`).subscribe({
+        this.http.get<Candle[]>(`${this.api}/candles/${symbol}?timeframe=1D&range=${this.candleRange}`).subscribe({
             next: x => this.candles[symbol] = x.slice(-90),
             error: e => { this.candles[symbol] = []; if (!this.error) this.error = e?.error?.message || `Historical candles unavailable for ${symbol}.`; }
         });
